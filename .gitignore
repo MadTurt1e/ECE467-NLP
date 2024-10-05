@@ -1,0 +1,6 @@
+.vscode/*
+venv/*
+
+P1/corpus*
+P1/analyze.pl
+P1/output.txt
