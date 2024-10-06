@@ -2,9 +2,11 @@ import math
 from collections import defaultdict
 
 from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
 
 from tqdm import tqdm
+
+
 # I did Naive Bayes because it is straightforward to implement - "bag o words"
 class NaiveBayesClassifier:
     def __init__(self):
@@ -13,7 +15,7 @@ class NaiveBayesClassifier:
         self.vocab = set()
 
         # We split the word counter into a double "array", where all values
-        # are initialized as 0
+        # are initialized as 0 (by defaultdict)
         self.word_counts = defaultdict(lambda: defaultdict(int))
         # We set up an "array" of all the categories, so we can figure out
         # the documents spotted so far
@@ -25,7 +27,7 @@ class NaiveBayesClassifier:
         # We record the amount of actual documents there are
         self.total_docs = len(documents)
         # And we use a stemmer because they are faster than lemmatizers
-        stemmer = PorterStemmer()
+        lemmatizer = WordNetLemmatizer()
 
         # Iterate through each document and category (zip is a way to do this)
         # I learned about tqdm in DL and now it is necessary everywhere
@@ -39,18 +41,18 @@ class NaiveBayesClassifier:
             # Iterate through every token
             for word in words:
                 # Stem the word for "normalization" purposes
-                stemmed_word = stemmer.stem(word.lower())
+                lemmaed_word = lemmatizer.lemmatize(word.lower())
 
                 # Note down that this is a word
-                self.vocab.add(stemmed_word)
+                self.vocab.add(lemmaed_word)
 
                 # Add this to (specifically) our category word count
-                self.word_counts[category][stemmed_word] += 1
+                self.word_counts[category][lemmaed_word] += 1
 
     # https://en.wikipedia.org/wiki/Naive_Bayes_classifier
     # Naive Bayes is basically an implementation of Wikipedia
     def predict(self, document):
-        stemmer = PorterStemmer()
+        lemmatizer = WordNetLemmatizer()
         words = self.tokenize(document)
         scores = {}
 
@@ -60,11 +62,12 @@ class NaiveBayesClassifier:
             score = math.log(self.category_counts[category] / self.total_docs)
             # Go through every word
             for word in words:
-                stemmed_word = stemmer.stem(word.lower())
+                lemmaed_word = lemmatizer.lemmatize(word.lower())
                 # If the word exists in our vocabulary we find the prob of it
                 # appearing and add it to our bayes score
-                if stemmed_word in self.vocab:
-                    word_count = self.word_counts[category][stemmed_word]
+                if lemmaed_word in self.vocab:
+                    word_count = self.word_counts[category][lemmaed_word]
+                    # Laplace smoothing from wikipedia
                     score += math.log(
                         (word_count + 1)
                         / (sum(self.word_counts[category].values())
@@ -116,9 +119,9 @@ def main():
     test_file_paths = []
     with open(test_file, "r") as f:
         for line in f:
-            # Use this if you're testing on something w/o a list
-            file_path, category = line.strip().split()
-            # file_path = line.strip()
+            # # Use this if you're testing on something labeled
+            # file_path, category = line.strip().split()
+            file_path = line.strip()
             test_documents.append(read_file(file_path))
             test_file_paths.append(file_path)
 
@@ -128,12 +131,12 @@ def main():
         predictions.append(classifier.predict(doc))
 
     # Write output
-    output_file = input("Enter the name of the output file: ")
+    output_file = input("Input output file name: ")
     with open(output_file, "w") as f:
         for file_path, prediction in zip(test_file_paths, predictions):
             f.write(f"{file_path} {prediction}\n")
 
-    print(f"Predictions have been written to {output_file}")
+    print(f"Output to {output_file}")
 
 
 if __name__ == "__main__":
