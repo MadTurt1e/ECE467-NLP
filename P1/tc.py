@@ -1,8 +1,10 @@
 import math
+import string
 from collections import defaultdict
 
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords, wordnet
 
 from tqdm import tqdm
 
@@ -22,12 +24,31 @@ class NaiveBayesClassifier:
         self.category_counts = defaultdict(int)
         # We also want to keep track of the total amount of documents seen
         self.total_docs = 0
+        # Also there's a function that eliminates all "useless" words
+        self.stop_words = set(stopwords.words("english"))
+
+    def lemmatizer(self, word):
+        # Use a lemmatizer because it may be more accurate
+        lemmatizer = WordNetLemmatizer()
+        tokens = word_tokenize(word.lower())
+        # If the word is a "useless" word we ignore it
+        return [lemmatizer.lemmatize(token) for token in tokens
+                if token not in self.stop_words
+                and token not in string.punctuation]
+        
+    # # Synynoms can also be relevant
+    # def get_synonyms(self, word):
+    #     synonyms = []
+    #     for syn in wordnet.synsets(word):
+    #         for lemma in syn.lemmas():
+    #             synonym = lemma.name().lower().replace("_", " ")
+    #             if synonym != word and synonym not in synonyms:
+    #                 synonyms.append(synonym)
+    #     return synonyms
 
     def train(self, documents, categories):
         # We record the amount of actual documents there are
         self.total_docs = len(documents)
-        # And we use a stemmer because they are faster than lemmatizers
-        lemmatizer = WordNetLemmatizer()
 
         # Iterate through each document and category (zip is a way to do this)
         # I learned about tqdm in DL and now it is necessary everywhere
@@ -35,25 +56,25 @@ class NaiveBayesClassifier:
                                   total=len(documents), desc="  Training"):
             # Mention to our NaiveBayes: hey, there's a document in here
             self.category_counts[category] += 1
-            # thank goodness we don't have to write a tokenizer
-            words = self.tokenize(doc)
+            # We just lemmatize straight now
+            words = self.lemmatizer(doc)
 
             # Iterate through every token
             for word in words:
-                # Stem the word for "normalization" purposes
-                lemmaed_word = lemmatizer.lemmatize(word.lower())
-
+                # For every word, check if there is a valid synynom
                 # Note down that this is a word
-                self.vocab.add(lemmaed_word)
+                self.vocab.add(word)
 
                 # Add this to (specifically) our category word count
-                self.word_counts[category][lemmaed_word] += 1
+                self.word_counts[category][word] += 1
+
+                # We can also add all the synynoms
+                synynoms = self.get_synynoms(word)
 
     # https://en.wikipedia.org/wiki/Naive_Bayes_classifier
     # Naive Bayes is basically an implementation of Wikipedia
     def predict(self, document):
-        lemmatizer = WordNetLemmatizer()
-        words = self.tokenize(document)
+        words = self.lemmatizer(document)
         scores = {}
 
         # Calculate a probability score for our document
@@ -62,11 +83,10 @@ class NaiveBayesClassifier:
             score = math.log(self.category_counts[category] / self.total_docs)
             # Go through every word
             for word in words:
-                lemmaed_word = lemmatizer.lemmatize(word.lower())
                 # If the word exists in our vocabulary we find the prob of it
                 # appearing and add it to our bayes score
-                if lemmaed_word in self.vocab:
-                    word_count = self.word_counts[category][lemmaed_word]
+                if word in self.vocab:
+                    word_count = self.word_counts[category][word]
                     # Laplace smoothing from wikipedia
                     score += math.log(
                         (word_count + 1)
@@ -77,10 +97,6 @@ class NaiveBayesClassifier:
 
         # Return the category with the highest score
         return max(scores, key=scores.get)
-
-    # Python tokenizer
-    def tokenize(self, text):
-        return word_tokenize(text)
 
 
 def read_file(file_path):
