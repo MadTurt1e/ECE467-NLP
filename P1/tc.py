@@ -65,7 +65,6 @@ class NaiveBayesClassifier:
 
             # Iterate through every token
             for word in words:
-                # For every word, check if there is a valid synynom
                 # Note down that this is a word
                 self.vocab.add(word)
 
@@ -76,9 +75,14 @@ class NaiveBayesClassifier:
                 synynoms = self.get_synynoms(word)
                 for synynom in synynoms:
                     self.vocab.add(synynom)
-                    # Synynoms are slightly less meaningful, so they
-                    # theoretically get less weight but not that much less
-                    self.word_counts[category][synynom] += 0.7
+                    # Synynoms are slightly less meaningful, but I find they
+                    # should be meaningful depending on category count
+                    synynom_meaningfulness = 0.7
+                    if len(self.word_counts) < 4:
+                        synynom_meaningfulness = 0.2
+
+                    self.word_counts[
+                        category][synynom] += synynom_meaningfulness
 
     # https://en.wikipedia.org/wiki/Naive_Bayes_classifier
     # Naive Bayes is basically an implementation of Wikipedia
