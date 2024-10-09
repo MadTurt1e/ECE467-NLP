@@ -35,16 +35,20 @@ class NaiveBayesClassifier:
         return [lemmatizer.lemmatize(token) for token in tokens
                 if token not in self.stop_words
                 and token not in string.punctuation]
-        
-    # # Synynoms can also be relevant
-    # def get_synonyms(self, word):
-    #     synonyms = []
-    #     for syn in wordnet.synsets(word):
-    #         for lemma in syn.lemmas():
-    #             synonym = lemma.name().lower().replace("_", " ")
-    #             if synonym != word and synonym not in synonyms:
-    #                 synonyms.append(synonym)
-    #     return synonyms
+
+    # Synynoms can also be relevant
+    def get_synynoms(self, word):
+        synonyms = []
+        # Hunt through every synynom we find
+        for syn in wordnet.synsets(word):
+            for lemma in syn.lemmas():
+                # I notice synynoms have underscores for some reason
+                synonym = lemma.name().lower().replace("_", " ")
+                # If we have literally saw the synynom already ignore it
+                if synonym != word and synonym not in synonyms:
+                    synonyms.append(synonym)
+        # We now have a list of synynoms
+        return synonyms
 
     def train(self, documents, categories):
         # We record the amount of actual documents there are
@@ -70,6 +74,11 @@ class NaiveBayesClassifier:
 
                 # We can also add all the synynoms
                 synynoms = self.get_synynoms(word)
+                for synynom in synynoms:
+                    self.vocab.add(synynom)
+                    # Synynoms are slightly less meaningful, so they
+                    # theoretically get less weight but not that much less
+                    self.word_counts[category][synynom] += 0.7
 
     # https://en.wikipedia.org/wiki/Naive_Bayes_classifier
     # Naive Bayes is basically an implementation of Wikipedia
